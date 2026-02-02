@@ -1,1 +1,22 @@
-/bin/
+# compiled output
+bin/
+out/
+*.class
+
+# Eclipse
+.settings/
+.classpath
+.project
+
+# IntelliJ
+.idea/
+*.iml
+
+# Build tools
+.gradle/
+build/
+target/
+
+# OS
+.DS_Store
+Thumbs.db

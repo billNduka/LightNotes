@@ -5,6 +5,7 @@ module LightNotes {
     requires javafx.web;
     requires javafx.fxml;
 	requires javafx.base;
+    requires com.google.gson;
 
     opens view to javafx.fxml;
     opens controller to javafx.fxml;

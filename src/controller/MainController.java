@@ -2,6 +2,8 @@ package controller;
 
 
 import javafx.collections.FXCollections;
+
+import java.time.LocalDateTime;
 import java.util.ResourceBundle;
 import java.net.URL;
 import javafx.collections.ObservableList;
@@ -12,13 +14,9 @@ import javafx.scene.control.TextField;
 import javafx.scene.control.ListView;
 import javafx.scene.web.WebView;
 import javafx.scene.layout.BorderPane;
-import javafx.scene.web.WebEngine;
 import javafx.stage.FileChooser;
 import java.io.File;
 import java.nio.file.Files;
-import java.nio.file.Path;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
 import java.io.FileWriter;
 import org.commonmark.node.*;
 import org.commonmark.parser.Parser;
@@ -31,9 +29,10 @@ public class MainController implements Initializable{
 	@FXML private TextArea noteArea;
 	@FXML private WebView webView;
 	@FXML private BorderPane rootPane;
-	@FXML private ListView<Note> openNotesList;
+	@FXML private ListView<Note> recentNotesList;
 	
 	Note currentNote;
+    File currentFile;
 	private boolean isViewing = false;
 	private ObservableList<Note> notes = FXCollections.observableArrayList();
 
@@ -41,20 +40,22 @@ public class MainController implements Initializable{
 	 
 	@Override
 	public void initialize(URL location, ResourceBundle resources) {
-		openNotesList.setItems(notes);
+		recentNotesList.setItems(notes);
 	}
 
-	
-	private void setCurrentNote() {
-		currentNote = new Note(titleField.getText(), noteArea.getText());
-	}
-	
-	public void loadNote(Note note) {
-	    titleField.setText(note.getTitle());
-	    noteArea.setText(note.getText());
-	}
-	
-	public void load() throws IOException {
+    private void setCurrentNote(String fileTitle, String fileText, String filePath, LocalDateTime currentTime){
+        currentNote = new Note(fileTitle, fileText, filePath, currentTime);
+    }
+    private void setCurrentFile(File file){
+        currentFile = file;
+    }
+    private void loadNoteIntoEditor(Note note) {
+        titleField.setText(note.getTitle());
+        noteArea.setText(note.getText());
+    }
+
+
+    public void loadFileToNote() throws IOException {
 		FileChooser fileChooser = new FileChooser();
 	    fileChooser.setTitle("Load Note");
 	    
@@ -67,16 +68,17 @@ public class MainController implements Initializable{
 	    	String fileText = Files.readString(selectedFile.toPath());
 	    	String fileName = selectedFile.getName();
 	    	String fileTitle = fileName.contains(".") ? fileName.substring(0, fileName.lastIndexOf(".")) : fileName;
+            String filePath = selectedFile.getPath();
+	    	LocalDateTime currentTime = LocalDateTime.now();
 	    	
-	    	
-	    	currentNote = new Note(fileTitle, fileText);
-	        noteArea.setText(currentNote.getText());
-	        titleField.setText(currentNote.getTitle());
+	    	setCurrentNote(fileTitle, fileText, filePath, currentTime);
+            setCurrentFile(selectedFile);
+            loadNoteIntoEditor(currentNote);
 	    }
-	    view();
+	    displayWebview();
 	}
 	
-	private void saveTextToFile(String content, File file) {
+	private void saveTextToFile (String content, File file) {
 	    try (FileWriter writer = new FileWriter(file)) {
 	        writer.write(content);
 	    } catch (IOException e) {
@@ -85,39 +87,42 @@ public class MainController implements Initializable{
 	}
 	
 	public void save() {
-		FileChooser fileChooser = new FileChooser();
-	    fileChooser.setTitle("Save Note");
+        if (currentFile != null) {
+            saveTextToFile(noteArea.getText(), currentFile);
+        } else{
+            FileChooser fileChooser = new FileChooser();
+            fileChooser.setTitle("Save Note");
 
-	    // Default extension
-	    FileChooser.ExtensionFilter extFilter =
-	            new FileChooser.ExtensionFilter("Text files (*.txt)", "*.txt");
-	    fileChooser.getExtensionFilters().add(extFilter);
+            // Default extension
+            FileChooser.ExtensionFilter extFilter = new FileChooser.ExtensionFilter("Text files (*.txt)", "*.txt");
+            fileChooser.getExtensionFilters().add(extFilter);
 
-	    // Suggest a default name based on the title
-	    fileChooser.setInitialFileName(titleField.getText() + ".txt");
+            // Suggest a default name based on the title
+            fileChooser.setInitialFileName(titleField.getText() + ".txt");
 
-	    File file = fileChooser.showSaveDialog(noteArea.getScene().getWindow());
+            File file = fileChooser.showSaveDialog(noteArea.getScene().getWindow());
 
-	    if (file != null) {
-	        saveTextToFile(noteArea.getText(), file);
-	    }
+            if (file != null) {
+                saveTextToFile(noteArea.getText(), file);
+            }
+        }
 	}
-	
-	public void view() {
-		setCurrentNote();
-		
-		Parser parser = Parser.builder().build();
-		Node document = parser.parse(currentNote.getText());
-		HtmlRenderer renderer = HtmlRenderer.builder().build();
-		String html = renderer.render(document);
-		
-		WebEngine engine = webView.getEngine();
-		engine.loadContent(html, "text/html");
-	}
-	
-	public void display() {
+
+    public void displayWebview() {
+        String text = noteArea.getText();
+
+        Parser parser = Parser.builder().build();
+        Node document = parser.parse(text);
+        HtmlRenderer renderer = HtmlRenderer.builder().build();
+        String html = renderer.render(document);
+
+        webView.getEngine().loadContent(html, "text/html");
+    }
+
+
+    public void displayEditor() {
 	    if (!isViewing) {
-	        view();
+	        displayWebview();
 	        rootPane.setRight(null);      
 	        rootPane.setCenter(webView);  
 	        isViewing = true;
